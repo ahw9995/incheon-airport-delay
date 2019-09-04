@@ -1,0 +1,160 @@
+<html lang="ko"
+      xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout" layout:decorator="layouts/layout">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="author" content="colorlib.com">
+    <link href="https://fonts.googleapis.com/css?family=Poppins:400,500,700" rel="stylesheet" />
+    <link th:href="@{/css/main.css}" rel="stylesheet" />
+  </head>
+  <body>
+    <div class="s013">
+      <form>
+        <fieldset>
+          <legend style="border: none;">연착 정보 조회</legend>
+        </fieldset>
+        <div class="inner-form">
+          <div class="left">
+            <div class="input-wrap first">
+              <div class="input-field first">
+                <label>도착지 선택</label>
+                <div class="input-select">
+                  <select data-trigger="" name="airport" id="airport">
+                    <option value="" selected disabled>선택하세요</option>
+                    <option th:each="airport :${airportList}" th:value="${airport.airportCode}" th:text="${airport.airportName}"></option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div class="input-wrap second">
+              <div class="input-field second">
+                <label>항공사 선택</label>
+                <div class="input-select">
+                  <select data-trigger2="" id="company" name="company" hidden>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+          <button class="btn-search" id="search" type="button">SEARCH</button>
+        </div>
+
+        <div class="input-wrap" id="info" style="margin-top: 100px; background-color: white;" hidden>
+
+          <table class="table">
+            <thead class="thead-light">
+            <tr>
+              <th scope="col">10분 이내 출발 확률</th>
+              <th scope="col">30분 초과 지연 확률</th>
+              <!--<th scope="col">평균 지연 시간</th>-->
+              <th scope="col">총 운항 횟수</th>
+              <!--<th scope="col">총 회항 횟수</th>-->
+              <!--<th scope="col">총 결항 횟수</th>-->
+            </tr>
+            </thead>
+            <tbody>
+            <tr>
+              <td scope="row"><span class="h2 text-success" id="departureWithinTenMinutes">3.8</span> %</td>
+              <td><span class="h2 text-danger" id="delayProbability">65.4</span> %</td>
+              <!--<td><span class="h1" id="averageLatency">20.4</span> 분</td>-->
+              <td><span class="h2 text-info" id="totalNumberOfFlights">5312</span> 회</td>
+              <!--<td><span class="h1 text-info" id="totalNumberOfReturns">5312</span> 회</td>-->
+              <!--<td><span class="h1 text-info" id="totalCancellations">5312</span> 회</td>-->
+            </tr>
+            </tbody>
+          </table>
+        </div>
+      </form>
+    </div>
+    <script th:src="@{https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js}"></script>
+    <!-- 합쳐지고 최소화된 최신 CSS -->
+    <link rel="stylesheet" th:href="@{https://maxcdn.bootstrapcdn.com/bootstrap/3.3.2/css/bootstrap.min.css}">
+    <!-- 부가적인 테마 -->
+    <link rel="stylesheet" th:href="@{https://maxcdn.bootstrapcdn.com/bootstrap/3.3.2/css/bootstrap-theme.min.css}">
+    <!-- 합쳐지고 최소화된 최신 자바스크립트 -->
+    <script th:src="@{https://maxcdn.bootstrapcdn.com/bootstrap/3.3.2/js/bootstrap.min.js}"></script>
+    <script th:src="@{/js/extention/choices.js}"></script>
+    <script type="text/javascript">
+
+        document.addEventListener('DOMContentLoaded', function() {
+            var supportFormSelect = new Choices('[data-trigger]',
+                {
+                    searchEnabled: true,
+                    itemSelectText: ''
+                });
+        });
+
+        $(document).ready(function() {
+            var data = new Choices('[data-trigger2]',
+                {
+                    searchEnabled: false,
+                    itemSelectText: ''
+                });
+
+            $(function() {
+                $('#airport').change(function() {
+                    $.ajax({
+                        type: "get",
+                        url: "/v1/airport/companies/"+ this.value,
+                        success: function(response) {
+                            if(response.code === '200 OK'){
+                                list = response.data;
+
+                                if (data) {
+                                    data.clearStore();
+                                }
+
+                                if (list != null) {
+                                    data.setValue(list);
+                                }
+
+                            }else{
+                                console.log(response);
+                            }
+                        },
+                        error: function(error) {
+                            console.log(error);
+                        }
+                    })
+                });
+
+                $('#search').click(function() {
+                    var airportCode = $('#airport option:selected').val();
+                    var companyName = $('#company option:selected').val();
+
+                    if (airportCode === '' || companyName === '') {
+                        alert("검색조건을 선택해주세요.");
+                    }
+
+                    $.ajax({
+                        type: "get",
+                        url: "/v1/airport/cancellation-rate/" + companyName + "/" + airportCode,
+                        success: function(response) {
+                            if(response.code === '200 OK'){
+                                console.log(response);
+                                $("#info").show();
+                                $("#departureWithinTenMinutes").text(response.data.departureWithinTenMinutes);
+                                $("#delayProbability").text(response.data.delayProbability);
+                                // $("#averageLatency").text(response.data.averageLatency);
+                                $("#totalNumberOfFlights").text(response.data.totalNumberOfFlights);
+                                // $("#totalNumberOfReturns").text(response.data.totalNumberOfReturns);
+                                // $("#totalCancellations").text(response.data.totalCancellations);
+                            }else{
+                                console.log(response);
+                            }
+                        },
+                        error: function(error) {
+                            console.log(error);
+                        }
+                    });
+                });
+            });
+        });
+
+    </script>
+
+  </body><!-- This templates was made by Colorlib (https://colorlib.com) -->
+</html>
